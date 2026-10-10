@@ -62,17 +62,17 @@ function PrimaryNav({ onNavigate }: { onNavigate?: () => void }) {
 function healthCopy(health: HealthCheck): string {
   switch (health.status) {
     case "checking":
-      return `Checking ${HEALTH_PATH}…`;
+      return "Checking whether the local AURA backend is reachable…";
     case "ok":
-      return `Health check passed in ${health.elapsedMs} ms. Planning is still not connected.`;
+      return `Backend responded in ${health.elapsedMs} ms. Ollama availability is checked when you request a plan.`;
     case "server_error":
-      return `Health check failed with HTTP ${health.httpStatus}. This was not treated as success.`;
+      return `Backend check returned HTTP ${health.httpStatus}.`;
     case "timeout":
-      return `Health check timed out after ${HEALTH_TIMEOUT_MS / 1000} seconds. No success was assumed.`;
+      return `Backend check timed out after ${HEALTH_TIMEOUT_MS / 1000} seconds.`;
     case "network":
-      return "Could not reach the health check. No success was assumed.";
+      return "Could not reach the backend. Check that it is running and allows this frontend origin.";
     case "invalid":
-      return `Health check returned an unrecognized response (HTTP ${health.httpStatus}). It was not treated as success.`;
+      return `Backend check returned an unexpected response (HTTP ${health.httpStatus}).`;
   }
 }
 
@@ -160,7 +160,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PrimaryNav />
         </nav>
         <p className="mt-auto text-xs leading-5 text-paper/60">
-          Two-person hackathon preview. Sample boards are labelled fixtures. Only {HEALTH_PATH} is a verified endpoint.
+          Sample boards are labelled fixtures. Plans are requested from the local AURA API at {HEALTH_PATH}.
         </p>
       </aside>
       <div className="dark-surface sticky top-0 z-40 flex items-center justify-between border-b border-white/10 bg-ink px-4 py-3 text-paper lg:hidden">

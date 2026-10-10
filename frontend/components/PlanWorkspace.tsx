@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { CONTRACT_STATUS, type ProposedGoalInput } from "@/lib/contracts/planning";
+import { type GeneratedPlan, type ProposedGoalInput } from "@/lib/contracts/planning";
 import { EXAMPLE_DRAFT, SAMPLE_PLAN } from "@/lib/fixtures/samples";
-import { submitPlanningDraft, type PlanningClientResult } from "@/lib/planning/client";
+import { PlanningApiError, submitPlanningDraft, type PlanningClientResult } from "@/lib/planning/client";
 import { addMonths, formatDisplayDate, formatIsoDate, todayLocal } from "@/lib/planning/dates";
 import type { ScheduleItem } from "@/lib/planning/schedule";
 import {
@@ -70,10 +70,11 @@ export function PlanWorkspace() {
 
   useEffect(() => {
     const today = todayLocal();
-    setDateBounds({ min: formatIsoDate(today), max: formatIsoDate(addMonths(today, 24)) });
-    if (window.location.hash === "#sample-plan") {
-      setSampleOpen(true);
-    }
+    const timer = window.setTimeout(() => {
+      setDateBounds({ min: formatIsoDate(today), max: formatIsoDate(addMonths(today, 24)) });
+      if (window.location.hash === "#sample-plan") setSampleOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function update<K extends keyof GoalDraft>(key: K, value: GoalDraft[K]) {
@@ -105,6 +106,8 @@ export function PlanWorkspace() {
     setErrors([]);
     setFailure(null);
     setNotice(null);
+    setChecked(null);
+    setSubmission(null);
     setPhase("checking");
     try {
       const response = await submitPlanningDraft(result.value);
@@ -113,9 +116,13 @@ export function PlanWorkspace() {
       setLastKey(key);
       setPhase("checked");
       requestAnimationFrame(() => outcomeRef.current?.focus());
-    } catch {
+    } catch (error) {
       setPhase("failed");
-      setFailure("The draft could not be checked locally. Nothing was sent.");
+      const message = error instanceof Error ? error.message : "The plan request failed. Please retry.";
+      const details = error instanceof PlanningApiError && error.details?.length
+        ? ` ${error.details.map((item) => `${item.field}: ${item.message}`).join(" ")}`
+        : "";
+      setFailure(`${message}${details}`);
       requestAnimationFrame(() => outcomeRef.current?.focus());
     } finally {
       inFlight.current = false;
@@ -217,23 +224,23 @@ export function PlanWorkspace() {
         Check a goal before you call it a plan.
       </h1>
       <p className="mt-4 max-w-2xl text-base leading-7 text-ink-soft">
-        Enter a target date, the hours you can give, and a budget only if you have one. AURA validates the draft in this
-        browser. It does not invent a plan, a route, or a price.
+        Enter your goal and constraints. AURA sends the supported details to its local planning backend, which asks Ollama
+        to generate a plan and checks dates and cost estimates deterministically.
       </p>
 
       <div className="mt-6 rounded-3xl border border-line bg-gold-soft/70 px-4 py-4 text-sm leading-6 text-ink-soft">
         <p>
-          <strong className="font-medium text-ink">Planning API not documented.</strong> Team Member 2 did not leave a
-          contract in this repository. The only verified endpoint is {CONTRACT_STATUS.verifiedEndpoints[0].method}{" "}
-          {CONTRACT_STATUS.verifiedEndpoints[0].path}. The fields below are a labelled proposal.
+          <strong className="font-medium text-ink">Local AI planning.</strong> This form sends a request to the AURA
+          backend at <code>POST /api/plan</code>. Start the Python server and Ollama locally; cross-origin development
+          also requires the frontend origin in <code>AURA_CORS_ORIGINS</code>.
         </p>
         <details className="mt-3">
-          <summary className="cursor-pointer font-medium text-ink">Proposed fields for review</summary>
+          <summary className="cursor-pointer font-medium text-ink">How the form maps to the API</summary>
           <ul className="mt-2 list-disc space-y-1 pl-5">
-            <li>title, successCriteria, targetDate, weeklyHours</li>
-            <li>optional currency, budgetCapMinor, budgetItems</li>
-            <li>optional locationLabel and known commitments</li>
-            <li>No response schema was verified, so a successful plan is not rendered from a service.</li>
+            <li>The title, success criteria, weekly availability, optional location, and budget notes become goal context.</li>
+            <li>A total spending cap, target date, and known commitments use the matching API fields.</li>
+            <li>Only a supplied total cap is checked as the API budget; itemized notes are context, not a verified total.</li>
+            <li>The backend cannot match free-text commitments to generated time slots.</li>
           </ul>
         </details>
       </div>
@@ -664,14 +671,14 @@ export function PlanWorkspace() {
 
           <div className="mt-8 flex flex-wrap gap-3">
             <Button type="submit" disabled={phase === "checking"} aria-describedby="submit-hint">
-              {phase === "checking" ? "Checking…" : "Check this draft"}
+              {phase === "checking" ? "Generating plan" : phase === "failed" ? "Retry plan request" : "Generate my plan"}
             </Button>
             <Button variant="secondary" onClick={requestClear} aria-pressed={clearArmed}>
               {clearArmed ? "Confirm clear" : "Clear form"}
             </Button>
           </div>
           <p id="submit-hint" className="mt-3 text-sm text-muted">
-            Checks this draft in the browser. Does not generate a plan and does not submit twice while a check is running.
+            Sends the validated goal to your local AURA backend. A retry keeps this form data.
           </p>
           <div aria-live="polite" className="mt-3 text-sm text-ink-soft">
             {notice}
@@ -681,42 +688,40 @@ export function PlanWorkspace() {
         <aside
           ref={outcomeRef}
           tabIndex={-1}
-          aria-label="Draft outcome"
+          aria-label="Plan outcome"
           className="rounded-3xl border border-line bg-surface p-5 shadow-card outline-none lg:sticky lg:top-8"
         >
           <p className="text-xs font-medium uppercase tracking-[0.16em] text-gold-ink">Outcome</p>
-          <h2 className="mt-2 font-display text-3xl text-ink">What was checked</h2>
+          <h2 className="mt-2 font-display text-3xl text-ink">Your planning result</h2>
           {phase === "idle" ? (
             <p className="mt-4 text-sm leading-6 text-muted">
-              No plan yet. A checked draft stays in this browser tab and is not saved to an account.
+              No plan yet. Your draft stays in this browser tab until you submit it.
             </p>
           ) : null}
           {phase === "invalid" ? (
             <p className="mt-4 text-sm leading-6 text-danger" role="alert">
-              The draft was not checked because some fields need attention. Nothing was sent.
+              The plan was not requested because some fields need attention.
             </p>
           ) : null}
           {phase === "checking" ? (
             <p className="mt-4 text-sm text-ink-soft" role="status">
-              Checking inputs locally…
+              Generating a plan with the local model
             </p>
           ) : null}
           {phase === "failed" ? (
             <div className="mt-4">
-              <ErrorState title="Local check failed" message={failure ?? "Nothing was sent."} />
+              <ErrorState title="Plan request failed" message={failure ?? "The backend did not return a plan."} />
             </div>
           ) : null}
           {phase === "checked" && checked && submission ? (
             <div className="mt-4 space-y-4">
               <div className="rounded-2xl bg-ok-soft px-4 py-3 text-sm leading-6 text-ok" role="status">
-                Local checks passed at {formatStamp(submission.checkedAt)}. This is validation, not a generated plan.
+                Plan generated at {formatStamp(submission.receivedAt)}. Review estimates and warnings before acting.
               </div>
-              <div className="rounded-2xl bg-warning-soft px-4 py-3 text-sm leading-6 text-warning" role="alert">
-                No plan was created. The planning service is not connected, so this draft was not sent to a model.
-              </div>
+              <GeneratedPlanView plan={submission.plan} />
               {stale ? (
                 <p className="text-sm leading-6 text-ink-soft">
-                  You edited the form after this check. Check again to refresh local results. The previous check was not sent anywhere.
+                  You edited the form after this plan was generated. Submit again to create a plan for the updated draft.
                 </p>
               ) : null}
               <p className="text-sm leading-6 text-ink">{capacitySentence(checked)}</p>
@@ -738,7 +743,7 @@ export function PlanWorkspace() {
                   requestAnimationFrame(() => document.getElementById("sample-plan")?.focus());
                 }}
               >
-                Review labelled sample plan
+                Review separate sample fixture
               </Button>
             </div>
           ) : null}
@@ -808,7 +813,7 @@ export function PlanWorkspace() {
           </Button>
         </div>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-ink-soft">
-          This fixture shows how a plan summary, milestones, tasks, deadlines, assumptions, and warnings would be labelled.
+          This fixture shows a separate example plan, milestones, tasks, deadlines, assumptions, and warnings.
           It is not your draft and not a live model response.
         </p>
         {sampleOpen ? (
@@ -835,5 +840,56 @@ export function PlanWorkspace() {
         ) : null}
       </section>
     </div>
+  );
+}
+
+function GeneratedPlanView({ plan }: { plan: GeneratedPlan }) {
+  return (
+    <section className="mt-4 space-y-4" aria-label="AI-generated plan">
+      <div className="rounded-2xl border border-line bg-paper/70 p-4">
+        <h3 className="font-display text-xl text-ink">Summary</h3>
+        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-ink-soft">{plan.summary}</p>
+      </div>
+
+      <div>
+        <h3 className="font-display text-xl text-ink">Steps</h3>
+        <ol className="mt-3 space-y-3">
+          {plan.steps.map((step, index) => (
+            <li key={`${index}-${step.title}`} className="rounded-2xl border border-line p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h4 className="font-medium text-ink">{index + 1}. {step.title}</h4>
+                <Badge tone={step.priority === "high" ? "warning" : step.priority === "medium" ? "gold" : "neutral"}>
+                  {step.priority} priority
+                </Badge>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-ink-soft">{step.description}</p>
+              <p className="mt-2 text-xs leading-5 text-muted">
+                {step.day_offset === null ? "Start timing not specified" : step.day_offset === 0 ? "Starts today" : `Starts in ${step.day_offset} days`}
+                {" · "}
+                {step.duration_days === null ? "Duration not specified" : `${step.duration_days} ${step.duration_days === 1 ? "day" : "days"}`}
+                {" · "}
+                {step.estimated_cost === null ? "Cost estimate unavailable" : `Estimated cost: ${step.estimated_cost}`}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="rounded-2xl border border-line p-4">
+        <h3 className="font-display text-xl text-ink">Practical tips</h3>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-ink-soft">
+          {plan.tips.map((tip, index) => <li key={`${index}-${tip}`}>{tip}</li>)}
+        </ul>
+      </div>
+
+      {plan.warnings.length > 0 ? (
+        <div className="rounded-2xl border border-warning/30 bg-warning-soft p-4" role="note">
+          <h3 className="font-medium text-warning">Review these warnings</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-6 text-warning">
+            {plan.warnings.map((warning, index) => <li key={`${index}-${warning}`}>{warning}</li>)}
+          </ul>
+        </div>
+      ) : null}
+    </section>
   );
 }

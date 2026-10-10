@@ -1,36 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+This is AURA's Next.js frontend (App Router). It contains an overview at `/` and the planner at `/plan`.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and start the development server from this directory:
 
 ```bash
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). The planner calls the Python API directly at
+`http://127.0.0.1:8000/api/plan` by default. To use another local API URL, set `NEXT_PUBLIC_AURA_API_BASE_URL`
+before starting Next.js:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+$env:NEXT_PUBLIC_AURA_API_BASE_URL = "http://127.0.0.1:8000"
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start the backend from the repository root in another PowerShell window. Configure CORS with the exact frontend origin:
 
-## Learn More
+```powershell
+$env:AURA_CORS_ORIGINS = "http://localhost:3000"
+python -m backend.server
+```
 
-To learn more about Next.js, take a look at the following resources:
+Start Ollama and ensure `qwen2.5:1.5b` is available before submitting a plan. See [`docs/api-contract.md`](../docs/api-contract.md)
+for the request/response schema, validation behavior, errors, and Ollama setup.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+These settings are for local development. A deployed website calling `127.0.0.1` would connect to the visitor's own
+computer; online access requires a separately hosted backend and reachable inference service.

@@ -1,26 +1,53 @@
-/**
- * Planning contract — PROPOSAL, not a verified agreement.
- *
- * Inspection of this repository found:
- * - no frontend/ directory, OpenAPI document, shared schema package, or Team Member 2 contract
- * - one route handler: GET /api/health in src/app/api/health/route.ts
- *   success body { ok: true }; failure body { ok: false } with HTTP 500
- *
- * Do not send these types to a backend. Do not treat sample fixtures as live model output.
- */
+/** Contracts for AURA's local planning API and the richer browser-only draft UI. */
 
 export const CONTRACT_STATUS = {
-  planning: "unverified_proposal",
+  planning: "verified_local_api",
   verifiedEndpoints: [
     {
-      method: "GET" as const,
-      path: "/api/health",
-      successBody: "{ ok: true }",
-      failureBody: "{ ok: false }",
-      failureStatus: 500,
+      method: "POST" as const,
+      path: "/api/plan",
+      successStatus: 202,
     },
   ],
 } as const;
+
+export type PlanRequest = {
+  goal: string;
+  budget: number | null;
+  target_date: string | null;
+  commitments: string[];
+};
+
+export type GeneratedPlanStep = {
+  title: string;
+  description: string;
+  priority: "high" | "medium" | "low";
+  day_offset: number | null;
+  duration_days: number | null;
+  estimated_cost: number | null;
+};
+
+export type GeneratedPlan = {
+  goal: string;
+  budget: number | null;
+  target_date: string | null;
+  commitments: string[];
+  summary: string;
+  steps: GeneratedPlanStep[];
+  tips: string[];
+  warnings: string[];
+};
+
+export type PlanSuccessResponse = {
+  status: "accepted";
+  plan: GeneratedPlan;
+};
+
+export type PlanApiError = {
+  code: string;
+  message: string;
+  details?: Array<{ field: string; message: string }>;
+};
 
 export type SuggestionOrigin = "model_suggestion" | "deterministic_validation";
 
