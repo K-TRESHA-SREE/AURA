@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+/*
+  AURA design system
+  ------------------
+  Architecture note: this repository has no frontend/ directory. The App Router
+  app in src/ is the frontend. Backend files under src/db and src/app/api are
+  out of scope and are not styled or called except for the verified health route.
+
+  Color
+    ink #1c1915, paper #f3eee6, surface #fffdf8, spruce #1b655b, gold #7a4e22
+    danger and warning are for validation only, never for decoration.
+  Type
+    Display: Fraunces (fallback Iowan Old Style / Palatino / Georgia)
+    UI: Outfit (fallback Avenir Next / Segoe UI)
+    Scale: display 2.5–4.25rem, section 1.75–2rem, body 1rem, meta 0.75–0.875rem
+  Spacing
+    Tailwind 4px base. Page padding 1rem / 1.5rem / 2.5rem. Card padding 1.25–1.5rem.
+    Minimum interactive target 2.75rem (44px).
+  Radius
+    Controls and cards use rounded-2xl / rounded-3xl. Buttons are pills.
+  Breakpoints (Tailwind defaults, not overridden)
+    sm 640px, md 768px, lg 1024px, xl 1280px, 2xl 1536px
+    Below lg the shell is a single column with a menu button. At lg a fixed sidebar appears.
+  Motion
+    Short color transitions only. Disabled under prefers-reduced-motion.
+  Components
+    Button, ButtonLink, Field, Badge, EmptyState, LoadingState, ErrorState, AppShell.
+    Icons are inline SVG. No icon, date, or map dependency.
+*/
+
+@theme {
+  --color-ink: #1c1915;
+  --color-ink-soft: #3c342c;
+  --color-muted: #5c554c;
+  --color-line: #e3dacb;
+  --color-paper: #f3eee6;
+  --color-paper-deep: #e7dfd2;
+  --color-surface: #fffdf8;
+  --color-spruce: #1b655b;
+  --color-spruce-deep: #134941;
+  --color-mist: #e5f2ef;
+  --color-gold: #c4925a;
+  --color-gold-ink: #7a4e22;
+  --color-gold-soft: #f6ead8;
+  --color-danger: #8f382c;
+  --color-danger-soft: #f8e8e4;
+  --color-warning: #7a4e12;
+  --color-warning-soft: #f8efd8;
+  --color-ok: #215c38;
+  --color-ok-soft: #e5f2ea;
+  --shadow-card: 0 18px 50px rgba(28, 25, 21, 0.07);
+}
+
+@theme inline {
+  --font-sans: var(--font-outfit), "Avenir Next", "Segoe UI", sans-serif;
+  --font-display: var(--font-fraunces), "Iowan Old Style", Palatino, Georgia, serif;
+}
+
+body {
+  background:
+    radial-gradient(1100px 480px at 8% -12%, rgba(196, 146, 90, 0.18), transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, rgba(27, 101, 91, 0.1), transparent 46%),
+    var(--color-paper);
+  color: var(--color-ink);
+}
+
+::selection {
+  background: #d5ebe6;
+  color: #1c1915;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+.dark-surface :focus-visible {
+  outline-color: var(--color-paper);
+}
+
+[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
